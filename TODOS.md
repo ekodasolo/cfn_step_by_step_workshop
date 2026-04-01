@@ -19,7 +19,7 @@
 
 完成形を先に作り、動作確認の基準にする。
 
-- [ ] 1-1. ネットワークスタック完成形（`templates/network/network-final.yaml`）
+- [x] 1-1. ネットワークスタック完成形（`templates/network/network-final.yaml`）
   - VPC / サブネット×2 / IGW / ルートテーブル / SG×2 / Outputs+Export
 - [ ] 1-2. アプリケーションスタック完成形（`templates/application/application-final.yaml`）
   - IAM ロール / Launch Template / ASG / ALB / TargetGroup / Listener / Conditions / Mappings
