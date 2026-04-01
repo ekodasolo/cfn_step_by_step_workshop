@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Application stack"
+
+# ==================================================
+# Step 5 でここにパラメータを追加する
+# ==================================================
+# TODO: NetworkStackName パラメータ（クロススタック参照用）
+
+# ==================================================
+# Step 5 でここにマッピングを追加する
+# ==================================================
+# TODO: RegionAMI マッピング（リージョンごとの Amazon Linux 2023 AMI ID）
+#   - ap-northeast-1, ap-northeast-3, us-east-1 などを定義
+
+# ==================================================
+# リソース
+# ==================================================
+Resources:
+
+  # --------------------------------------------------
+  # Step 5 でここにリソースを追加する
+  # --------------------------------------------------
+  # TODO: IAM ロール（AmazonSSMManagedInstanceCore ポリシーをアタッチ）
+  # TODO: インスタンスプロファイル
+  # TODO: EC2 インスタンス
+  #   - !FindInMap で AMI ID を取得
+  #   - !ImportValue でサブネット ID・SG ID を参照
+  #   - UserData で httpd インストール + カレンダーページ生成
+  DummyWaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle

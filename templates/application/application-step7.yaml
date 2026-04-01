@@ -1,0 +1,345 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Application stack - IAM, EC2, ALB"
+
+# ==================================================
+# パラメータ
+# ==================================================
+Parameters:
+  NetworkStackName:
+    Type: String
+    Description: "Name of the network stack (for cross-stack references)"
+
+# ==================================================
+# マッピング（リージョンごとの AMI ID）
+# ※ Amazon Linux 2023 の最新 AMI ID はワークショップ実施前に更新すること
+#   確認方法: EC2 コンソール → AMI カタログ → Amazon Linux 2023
+# ==================================================
+Mappings:
+  RegionAMI:
+    ap-northeast-1:
+      AMI: ami-0599b6e53ca798bb2
+    ap-northeast-3:
+      AMI: ami-0a897c44e83f91dfc
+    us-east-1:
+      AMI: ami-0953476d60561c955
+
+# ==================================================
+# リソース
+# ==================================================
+Resources:
+
+  # --------------------------------------------------
+  # IAM ロール（SSM Session Manager 用）
+  # --------------------------------------------------
+  WebServerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-web-server-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-web-server-role"
+
+  WebServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref WebServerRole
+
+  # --------------------------------------------------
+  # EC2 インスタンス（直接定義）
+  # → Step 7 で Launch Template + Auto Scaling Group に置き換える
+  # --------------------------------------------------
+  WebServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap
+        - RegionAMI
+        - !Ref "AWS::Region"
+        - AMI
+      InstanceType: "t2.micro"
+      IamInstanceProfile: !Ref WebServerInstanceProfile
+      SubnetId: !ImportValue
+        Fn::Sub: "${NetworkStackName}-PublicSubnet1Id"
+      SecurityGroupIds:
+        - !ImportValue
+            Fn::Sub: "${NetworkStackName}-WebServerSecurityGroupId"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-web-server"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euo pipefail
+
+          # --- httpd インストール・起動 ---
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+
+          # --- メタデータ取得（IMDSv2） ---
+          TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+            -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+            http://169.254.169.254/latest/meta-data/instance-id)
+          PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+            http://169.254.169.254/latest/meta-data/local-ipv4)
+
+          # --- 日付情報 ---
+          YEAR=$(date +%Y)
+          MONTH=$(date +%m)
+          MONTH_NAME=$(date +"%B")
+
+          # --- カレンダー計算 ---
+          FIRST_DOW=$(date -d "${!YEAR}-${!MONTH}-01" +%w)
+          DAYS_IN_MONTH=$(cal "$MONTH" "$YEAR" | awk 'NF {DAYS = $NF} END {print DAYS}')
+          TODAY=$(date +%d | sed 's/^0//')
+
+          # --- カレンダー HTML 生成 ---
+          generate_calendar() {
+            echo '<table class="calendar">'
+            echo '  <thead>'
+            echo '    <tr>'
+            for day in Sun Mon Tue Wed Thu Fri Sat; do
+              echo "      <th>${!day}</th>"
+            done
+            echo '    </tr>'
+            echo '  </thead>'
+            echo '  <tbody>'
+            echo '    <tr>'
+
+            for ((i = 0; i < FIRST_DOW; i++)); do
+              echo '      <td></td>'
+            done
+
+            cell=$FIRST_DOW
+            for ((d = 1; d <= DAYS_IN_MONTH; d++)); do
+              if [ "$d" -eq "$TODAY" ]; then
+                echo "      <td class=\"today\">${!d}</td>"
+              else
+                echo "      <td>${!d}</td>"
+              fi
+              cell=$((cell + 1))
+              if [ $((cell % 7)) -eq 0 ] && [ "$d" -lt "$DAYS_IN_MONTH" ]; then
+                echo '    </tr>'
+                echo '    <tr>'
+              fi
+            done
+
+            remaining=$(( (7 - (cell % 7)) % 7 ))
+            for ((i = 0; i < remaining; i++)); do
+              echo '      <td></td>'
+            done
+
+            echo '    </tr>'
+            echo '  </tbody>'
+            echo '</table>'
+          }
+
+          CALENDAR_HTML=$(generate_calendar)
+
+          # --- HTML 出力 ---
+          cat > /var/www/html/index.html <<HTMLEOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>CloudFormation Workshop</title>
+            <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #f0f4f8;
+                color: #1a202c;
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 2rem;
+              }
+              .container {
+                background: #fff;
+                border-radius: 16px;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+                padding: 2.5rem;
+                max-width: 520px;
+                width: 100%;
+              }
+              h1 {
+                font-size: 1.5rem;
+                font-weight: 700;
+                text-align: center;
+                margin-bottom: 0.5rem;
+                color: #232f3e;
+              }
+              .subtitle {
+                text-align: center;
+                color: #718096;
+                font-size: 0.9rem;
+                margin-bottom: 2rem;
+              }
+              .instance-info {
+                background: #edf2f7;
+                border-radius: 8px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 2rem;
+                display: flex;
+                gap: 1.5rem;
+                justify-content: center;
+                flex-wrap: wrap;
+              }
+              .info-item { text-align: center; }
+              .info-label {
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #718096;
+                margin-bottom: 0.25rem;
+              }
+              .info-value {
+                font-family: "SF Mono", "Fira Code", monospace;
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #2d3748;
+              }
+              .month-title {
+                text-align: center;
+                font-size: 1.1rem;
+                font-weight: 600;
+                margin-bottom: 1rem;
+                color: #2d3748;
+              }
+              .calendar {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+              }
+              .calendar th {
+                padding: 0.5rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                color: #a0aec0;
+                text-align: center;
+              }
+              .calendar td {
+                padding: 0.6rem;
+                text-align: center;
+                font-size: 0.9rem;
+                color: #4a5568;
+                border-radius: 8px;
+              }
+              .calendar td.today {
+                background: #ff9900;
+                color: #fff;
+                font-weight: 700;
+              }
+              .footer {
+                text-align: center;
+                margin-top: 1.5rem;
+                font-size: 0.75rem;
+                color: #a0aec0;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>CloudFormation Workshop</h1>
+              <p class="subtitle">Served from EC2 via Auto Scaling + ALB</p>
+              <div class="instance-info">
+                <div class="info-item">
+                  <div class="info-label">Instance ID</div>
+                  <div class="info-value">${!INSTANCE_ID}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Private IP</div>
+                  <div class="info-value">${!PRIVATE_IP}</div>
+                </div>
+              </div>
+              <div class="month-title">${!MONTH_NAME} ${!YEAR}</div>
+          ${!CALENDAR_HTML}
+              <div class="footer">Generated at $(date '+%Y-%m-%d %H:%M:%S %Z')</div>
+            </div>
+          </body>
+          </html>
+          HTMLEOF
+
+  # --------------------------------------------------
+  # ALB
+  # --------------------------------------------------
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-alb"
+      Scheme: internet-facing
+      Type: application
+      Subnets:
+        - !ImportValue
+            Fn::Sub: "${NetworkStackName}-PublicSubnet1Id"
+        - !ImportValue
+            Fn::Sub: "${NetworkStackName}-PublicSubnet2Id"
+      SecurityGroups:
+        - !ImportValue
+            Fn::Sub: "${NetworkStackName}-ALBSecurityGroupId"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-alb"
+
+  # ターゲットグループ（EC2 インスタンスを直接登録）
+  WebServerTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-tg"
+      Protocol: HTTP
+      Port: 80
+      VpcId: !ImportValue
+        Fn::Sub: "${NetworkStackName}-VpcId"
+      TargetType: instance
+      Targets:
+        - Id: !Ref WebServerInstance
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 5
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-tg"
+
+  # リスナー
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebServerTargetGroup
+
+  # --------------------------------------------------
+  # Step 7 でここを変更する
+  # --------------------------------------------------
+  # TODO: Environment パラメータを追加（dev / prod）
+  # TODO: Conditions セクションを追加（IsProd）
+  # TODO: WebServerInstance を削除し、Launch Template + Auto Scaling Group に置き換える
+  # TODO: !If で InstanceType を環境ごとに切り替える
+  # TODO: UpdatePolicy を設定する
+
+# ==================================================
+# 出力
+# ==================================================
+Outputs:
+  ALBDnsName:
+    Description: "ALB DNS name - access the application via this URL"
+    Value: !Sub "http://${ApplicationLoadBalancer.DNSName}"

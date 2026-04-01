@@ -44,11 +44,11 @@
 
 ## 3. ステップ別テンプレート作成（アプリケーションスタック）
 
-- [ ] 3-1. `application-step7.yaml`（Step 7 初期状態 = Step 6 完成形）
+- [x] 3-1. `application-step7.yaml`（Step 7 初期状態 = Step 6 完成形）
   - EC2 + ALB 完成済み、Launch Template・ASG・Conditions がまだない状態
-- [ ] 3-2. `application-step6.yaml`（Step 6 初期状態 = Step 5 完成形）
+- [x] 3-2. `application-step6.yaml`（Step 6 初期状態 = Step 5 完成形）
   - EC2 1台のみ完成済み、ALB がまだない状態
-- [ ] 3-3. `application-step5.yaml`（Step 5 初期状態 = 空テンプレート）
+- [x] 3-3. `application-step5.yaml`（Step 5 初期状態 = 空テンプレート）
   - テンプレートの骨格のみ、リソースなし
 
 ---
