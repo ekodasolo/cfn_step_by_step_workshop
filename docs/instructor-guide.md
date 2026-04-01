@@ -28,7 +28,7 @@
 | `templates/application/application-step7.yaml` | Step 7 の出発点 |
 | `templates/network/network-final.yaml` | ネットワークスタック完成形（答え合わせ用） |
 | `templates/application/application-final.yaml` | アプリケーションスタック完成形（答え合わせ用） |
-| `docs/hands-on-guide.md` | 参加者用テキスト |
+| `docs/hands-on/00-overview.md` 〜 `08-cleanup.md` | 参加者用テキスト（チャプター別） |
 
 ### リカバリ戦略
 
