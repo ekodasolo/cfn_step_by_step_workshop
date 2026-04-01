@@ -218,7 +218,7 @@
 | Step | テンプレート要素 | 組み込み関数（短縮構文） | スタック操作 |
 |---|---|---|---|
 | 1 | Resources, Type, Properties, Tags | — | Create Stack |
-| 2 | Parameters | !Ref, !Select, !GetAZs | Update Stack |
+| 2 | Parameters | !Ref, !Select, !GetAZs | Change Set → Update Stack |
 | 3 | DependsOn | !Sub | Update Stack（リソース追加） |
 | 4 | Outputs, Export | !GetAtt | Update Stack + コンソール確認 |
 | 5 | Mappings | !ImportValue, !FindInMap | Create Stack（2つ目） |
@@ -236,7 +236,7 @@
 | スタックの状態遷移 | Step 1（作成時） |
 | スタック更新の流れ | Step 2 以降（毎回） |
 | イベントログの読み方 | Step 2〜（更新時のリソース変更追跡） |
-| 変更セット（Change Sets） | Step 3 or 4（安全な更新確認として紹介） |
+| 変更セット（Change Sets） | Step 2 以降（全スタック更新で使用） |
 | クロススタック参照 | Step 4〜5（Export → ImportValue） |
 | リソースの置き換え vs 更新 | Step 7（EC2 → Launch Template + ASG） |
 | スタック削除の順序 | 最後（App → Network の順で削除が必要） |
