@@ -21,7 +21,7 @@
 
 - [x] 1-1. ネットワークスタック完成形（`templates/network/network-final.yaml`）
   - VPC / サブネット×2 / IGW / ルートテーブル / SG×2 / Outputs+Export
-- [ ] 1-2. アプリケーションスタック完成形（`templates/application/application-final.yaml`）
+- [x] 1-2. アプリケーションスタック完成形（`templates/application/application-final.yaml`）
   - IAM ロール / Launch Template / ASG / ALB / TargetGroup / Listener / Conditions / Mappings
 - [ ] 1-3. 完成形テンプレートの動作確認（AWS にデプロイして検証）
 
