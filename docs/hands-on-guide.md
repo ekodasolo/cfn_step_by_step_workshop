@@ -1,5 +1,7 @@
 # CloudFormation ハンズオン 手順書
 
+> **はじめに**: IaC や CloudFormation の基本概念については [導入資料（introduction.md）](introduction.md) を参照してください。
+
 ## ワークショップ概要
 
 最小構成のテンプレートから段階的にリソースを追加し、**テンプレートを育てながら CloudFormation を学ぶ**ハンズオンです。
