@@ -7,6 +7,19 @@
 
 ---
 
+## ワークショップ基本情報
+
+| 項目 | 内容 |
+|---|---|
+| 所要時間 | 4 時間 |
+| 形式 | ハンズオン（参加者が手を動かす） |
+| テンプレート形式 | YAML（短縮構文 `!Ref`, `!Sub` 等を使用） |
+| 進め方 | テキストの指示に沿い、AWS 公式 CloudFormation ドキュメントのリソースリファレンスを参照してプロパティを記述する |
+| 作業範囲 | 全プロパティを書かせるのではなく、キーポイントとなるプロパティだけ自分でリファレンスを見て指定する |
+| エラーハンドリング | ハッピーパターンのみ（ロールバック体験は含めない） |
+
+---
+
 ## 完成形アーキテクチャ
 
 ```
@@ -32,7 +45,8 @@
 
 - **2 スタック構成**: ネットワークスタック + アプリケーションスタック
 - **DB 不使用**: EC2 でスタティックな Web サイトをホスト
-- EC2 の UserData で簡単な HTML を配信する（nginx or httpd）
+- EC2 の UserData で httpd + 簡単な HTML を配信
+- **SSM Session Manager** でアクセス（キーペア不使用）
 
 ---
 
@@ -41,7 +55,7 @@
 | スタック | 含むリソース |
 |---|---|
 | **ネットワークスタック** | VPC / サブネット / IGW / ルートテーブル / セキュリティグループ |
-| **アプリケーションスタック** | EC2 / ALB + TargetGroup + Listener / Launch Template / Auto Scaling Group |
+| **アプリケーションスタック** | IAM ロール（SSM 用） / EC2 / ALB + TargetGroup + Listener / Launch Template / Auto Scaling Group |
 
 ---
 
@@ -59,21 +73,8 @@
 - マネジメントコンソールからのスタック作成
 - スタックの状態遷移（CREATE_IN_PROGRESS → CREATE_COMPLETE）
 
-**テンプレート要素**:
-```yaml
-AWSTemplateFormatVersion: "2010-09-09"
-Description: "Step 1 - VPC only"
-Resources:
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: "10.0.0.0/16"
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Name
-          Value: "cfn-workshop-vpc"
-```
+**参加者が書くキーポイント**:
+- `AWS::EC2::VPC` の `CidrBlock` プロパティ
 
 ---
 
@@ -82,47 +83,61 @@ Resources:
 **作るもの**: パブリックサブネット × 2（Multi-AZ）
 
 **学ぶこと**:
-- `Parameters`（CIDR や AZ を外部化）
-- 組み込み関数: `Ref`, `Fn::Select`, `Fn::GetAZs`
+- `Parameters` セクション（CIDR を外部化）
+- 短縮構文: `!Ref`, `!Select`, `!GetAZs`
 - スタック更新の実行（テンプレートを差し替えて Update Stack）
 - 更新時のイベントログの読み方
 
+**参加者が書くキーポイント**:
+- `AWS::EC2::Subnet` の `VpcId`, `CidrBlock`, `AvailabilityZone` プロパティ
+- `!Ref` でパラメータやリソースを参照する書き方
+- `!Select` + `!GetAZs` で AZ を動的に取得する書き方
+
 **新たに登場するテンプレート要素**:
-- `Parameters` セクション
-- `Ref` でパラメータやリソースを参照
-- `Fn::Select` + `Fn::GetAZs` で AZ を動的に取得
+- `Parameters`
+- `!Ref`, `!Select`, `!GetAZs`
 
 ---
 
 #### Step 3: インターネット接続を構成
 
-**作るもの**: Internet Gateway / ルートテーブル / ルート / サブネット関連付け
+**作るもの**: Internet Gateway / VPC Gateway Attachment / ルートテーブル / ルート / サブネットルートテーブル関連付け
 
 **学ぶこと**:
 - リソース間の依存関係（暗黙的依存 vs `DependsOn`）
-- `Fn::Sub` を使った文字列組み立て（タグの動的命名など）
+- `!Sub` を使った文字列組み立て（タグの動的命名）
 - 「リソース追加 = 既存リソースに影響なし」の安全な更新パターン
 - CloudFormation が作成順序を自動解決する仕組み
 
+**参加者が書くキーポイント**:
+- `AWS::EC2::InternetGateway` の定義
+- `AWS::EC2::Route` の `GatewayId`, `DestinationCidrBlock` プロパティ
+- `!Sub` による動的なタグ名の組み立て
+
 **新たに登場するテンプレート要素**:
-- `DependsOn`（IGW アタッチ → ルート作成の順序制御）
-- `Fn::Sub`
+- `DependsOn`
+- `!Sub`
 
 ---
 
 #### Step 4: セキュリティグループと Outputs
 
-**作るもの**: ALB 用 SG / EC2 用 SG（ALB からのみ許可）
+**作るもの**: ALB 用 SG（HTTP 80 を公開）/ EC2 用 SG（ALB からのみ HTTP 許可）
 
 **学ぶこと**:
 - `Outputs` セクション（値をスタック外に公開する）
 - `Export` によるクロススタック参照の準備
-- セキュリティグループの Ingress/Egress 設計
-- ここまでの完成形をマネジメントコンソールで確認
+- `!GetAtt` でリソースの属性を取得
+- セキュリティグループの Ingress 設計（SG 間参照）
+
+**参加者が書くキーポイント**:
+- `SecurityGroupIngress` のルール定義（ポート、ソース SG）
+- `Outputs` + `Export` の書き方
+- `!GetAtt` の使い方
 
 **新たに登場するテンプレート要素**:
 - `Outputs` + `Export`
-- `Fn::GetAtt`（リソースの属性を取得）
+- `!GetAtt`
 
 ---
 
@@ -130,19 +145,25 @@ Resources:
 
 #### Step 5: EC2 インスタンス 1 台
 
-**作るもの**: EC2 1 台（UserData で httpd を起動し、簡単な HTML を配信）
+**作るもの**: IAM ロール（SSM 用）/ インスタンスプロファイル / EC2 1 台（UserData で httpd + HTML を配信）
 
 **学ぶこと**:
 - 2 つ目のスタック作成（別テンプレートから新しいスタック）
-- `Fn::ImportValue` によるクロススタック参照（ネットワークスタックの出力を使う）
-- `Fn::Base64` + `Fn::Sub` による UserData の記述
-- `Mappings` で AMI ID をリージョンごとに管理
-- EC2 に直接アクセスして動作確認
+- `!ImportValue` によるクロススタック参照（ネットワークスタックの Outputs を使う）
+- `Mappings` でリージョンごとの AMI ID を管理
+- `!FindInMap` で Mappings から値を取得
+- UserData による EC2 の初期設定
+- SSM Session Manager で EC2 に接続して動作確認
+
+**参加者が書くキーポイント**:
+- `!ImportValue` でネットワークスタックのサブネット ID・SG ID を参照
+- `Mappings` セクションの定義
+- `!FindInMap` の書き方
+- `UserData` の httpd インストール・起動スクリプト
 
 **新たに登場するテンプレート要素**:
-- `Fn::ImportValue`（クロススタック参照）
-- `Fn::Base64`
-- `Mappings` セクション
+- `Mappings`
+- `!ImportValue`, `!FindInMap`
 
 ---
 
@@ -156,40 +177,50 @@ Resources:
 - スタック更新で既存 EC2 に ALB を追加する流れ
 - ALB の DNS 名を `Outputs` で取得し、ブラウザからアクセス確認
 
-**ポイント**:
-- EC2 に直接アクセスしていたのを ALB 経由に切り替える体験
+**参加者が書くキーポイント**:
+- `AWS::ElasticLoadBalancingV2::TargetGroup` のヘルスチェック設定
+- `AWS::ElasticLoadBalancingV2::Listener` の `DefaultActions` 定義
+- ALB の `Subnets` に `!ImportValue` でサブネットを指定
 
 ---
 
-#### Step 7: Launch Template + Auto Scaling
+#### Step 7: Launch Template + Auto Scaling + Conditions
 
-**作るもの**: Launch Template / Auto Scaling Group（EC2 の直接定義を置き換え）
+**作るもの**: Launch Template / Auto Scaling Group（EC2 の直接定義を置き換え）/ Conditions による環境切り替え
 
 **学ぶこと**:
 - Launch Template と直接 EC2 定義の違い
 - Auto Scaling Group のパラメータ（Min/Max/Desired）
+- `Conditions` で環境（prod/dev）によるインスタンスサイズの切り替え
+- `!If` による条件分岐
 - **リソースの置き換え（Replace）** が発生するスタック更新
 - 更新ポリシー（`UpdatePolicy`）によるローリング更新
 - スケーリングの動作確認（Desired を変更して台数増減）
-- `Conditions`（オプション: 本番/開発でインスタンスサイズを切り替え）
+
+**参加者が書くキーポイント**:
+- `Conditions` セクションの定義
+- `!If` による `InstanceType` の切り替え
+- `AWS::AutoScaling::AutoScalingGroup` の `MinSize`, `MaxSize`, `DesiredCapacity`
+- `UpdatePolicy` の `AutoScalingRollingUpdate` 設定
 
 **新たに登場するテンプレート要素**:
-- `UpdatePolicy`（Auto Scaling のローリング更新制御）
-- `Conditions`（オプション）
+- `Conditions`
+- `!If`
+- `UpdatePolicy`
 
 ---
 
 ## 学習要素の対応表
 
-| Step | テンプレート要素 | 組み込み関数 | スタック操作 |
+| Step | テンプレート要素 | 組み込み関数（短縮構文） | スタック操作 |
 |---|---|---|---|
 | 1 | Resources, Type, Properties, Tags | — | Create Stack |
-| 2 | Parameters | Ref, Fn::Select, Fn::GetAZs | Update Stack |
-| 3 | DependsOn | Fn::Sub | Update Stack（リソース追加） |
-| 4 | Outputs, Export | Fn::GetAtt | Update Stack + コンソール確認 |
-| 5 | Mappings, Fn::ImportValue | Fn::Base64, Fn::ImportValue, Fn::Sub | Create Stack（2つ目） |
-| 6 | — (構成パターン) | — | Update Stack（ALB追加） |
-| 7 | UpdatePolicy, (Conditions) | — | Update Stack（リソース置換） |
+| 2 | Parameters | !Ref, !Select, !GetAZs | Update Stack |
+| 3 | DependsOn | !Sub | Update Stack（リソース追加） |
+| 4 | Outputs, Export | !GetAtt | Update Stack + コンソール確認 |
+| 5 | Mappings | !ImportValue, !FindInMap | Create Stack（2つ目） |
+| 6 | — (ALB 構成パターン) | — | Update Stack（ALB 追加） |
+| 7 | Conditions, UpdatePolicy | !If | Update Stack（リソース置換） |
 
 ---
 
@@ -205,26 +236,32 @@ Resources:
 | 変更セット（Change Sets） | Step 3 or 4（安全な更新確認として紹介） |
 | クロススタック参照 | Step 4〜5（Export → ImportValue） |
 | リソースの置き換え vs 更新 | Step 7（EC2 → Launch Template + ASG） |
-| ロールバック | エラー発生時（意図的に体験させるのもアリ） |
 | スタック削除の順序 | 最後（App → Network の順で削除が必要） |
 
 ---
 
-## 前提条件・制約
+## 前提条件
 
 - **参加者**: AWS の基礎知識あり（VPC, EC2, SG の概念は知っている前提）
-- **使用ツール**: AWS マネジメントコンソール（CLI は使わない or 補助的に使用）
-- **リージョン**: 固定（例: ap-northeast-1）
-- **テンプレート形式**: YAML
-- **EC2 でホストするもの**: httpd + 簡単な HTML（「CloudFormation Workshop」的なページ）
+- **使用ツール**: AWS マネジメントコンソール
+- **参照資料**: AWS 公式 CloudFormation ドキュメント（リソースリファレンス）
+- **リージョン**: ap-northeast-1（東京）
+- **テンプレート形式**: YAML（短縮構文を使用）
+- **EC2 接続**: SSM Session Manager（キーペア不使用）
+- **EC2 でホストするもの**: httpd + 簡単な HTML
 
 ---
 
-## 未決定事項
+## 時間配分（目安: 4 時間）
 
-- [ ] ワークショップの所要時間（半日？1日？）
-- [ ] 参加者は自分で手を動かすか、講師のデモを見る形式か
-- [ ] EC2 のキーペア管理（SSM Session Manager にするか）
-- [ ] 意図的にエラーを起こしてロールバックを体験するステップを入れるか
-- [ ] Conditions を Step 7 に含めるか、オプション扱いにするか
-- [ ] このワークショップ用のディレクトリを flask_workshop 配下に作るか、別リポジトリにするか
+| 時間 | 内容 |
+|---|---|
+| 0:00 - 0:15 | イントロ・CloudFormation の概要説明 |
+| 0:15 - 0:45 | Step 1〜2（VPC + サブネット） |
+| 0:45 - 1:15 | Step 3（IGW + ルートテーブル） |
+| 1:15 - 1:45 | Step 4（SG + Outputs） |
+| 1:45 - 2:00 | 休憩 |
+| 2:00 - 2:40 | Step 5（EC2 + SSM 接続確認） |
+| 2:40 - 3:15 | Step 6（ALB + ブラウザ確認） |
+| 3:15 - 3:50 | Step 7（Launch Template + ASG + Conditions） |
+| 3:50 - 4:00 | まとめ・スタック削除・クリーンアップ |
