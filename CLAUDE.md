@@ -32,11 +32,26 @@ cfn_workshop/
 ├── TODOS.md               # タスク管理
 ├── ISSUES.md              # エラー・トラブル記録
 ├── KNOWLEDGE.md           # ナレッジ・TIPS 集
-├── templates/             # CloudFormation テンプレート（段階別）
-│   ├── network/           # ネットワークスタック（Step 1〜4）
-│   └── application/       # アプリケーションスタック（Step 5〜7）
+├── app/                   # EC2 でホストするアプリ（カレンダーページ生成スクリプト）
+├── templates/             # CloudFormation テンプレート
+│   ├── network/           # ネットワークスタック
+│   │   ├── network-final.yaml   # 完成形（Step 4 終了時点）
+│   │   ├── network-step1.yaml   # Step 1 初期状態
+│   │   ├── network-step2.yaml   # Step 2 初期状態
+│   │   ├── network-step3.yaml   # Step 3 初期状態
+│   │   └── network-step4.yaml   # Step 4 初期状態
+│   └── application/       # アプリケーションスタック
+│       ├── application-final.yaml  # 完成形（Step 7 終了時点）
+│       ├── application-step5.yaml  # Step 5 初期状態
+│       ├── application-step6.yaml  # Step 6 初期状態
+│       └── application-step7.yaml  # Step 7 初期状態
 └── docs/                  # 手順書・講師ガイド等
 ```
+
+### テンプレートの作成方針
+
+- **完成形（final）を先に作成**し、そこからリソースを削って**各ステップの初期状態を導出する**
+- `stepN.yaml` は「Step N で参加者が手を動かす前の状態」= 前ステップの完成形
 
 ---
 
