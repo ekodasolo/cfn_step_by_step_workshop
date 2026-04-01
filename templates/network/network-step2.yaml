@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Network stack - VPC only"
+
+# ==================================================
+# リソース
+# ==================================================
+Resources:
+
+  # --------------------------------------------------
+  # VPC
+  # --------------------------------------------------
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpc"
+
+  # --------------------------------------------------
+  # Step 2 でここにパブリックサブネットを追加する
+  # --------------------------------------------------
+  # TODO: Parameters セクションを追加（VpcCidr, PublicSubnet1Cidr, PublicSubnet2Cidr）
+  # TODO: PublicSubnet1（AZ-a）
+  # TODO: PublicSubnet2（AZ-c）

@@ -1,0 +1,16 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Network stack"
+
+# ==================================================
+# リソース
+# ==================================================
+Resources:
+
+  # --------------------------------------------------
+  # Step 1 でここに VPC を追加する
+  # --------------------------------------------------
+  # TODO: AWS::EC2::VPC リソースを定義する
+  #   - CidrBlock: 10.0.0.0/16
+  #   - EnableDnsSupport: true
+  #   - EnableDnsHostnames: true
+  #   - Tags で Name を付ける

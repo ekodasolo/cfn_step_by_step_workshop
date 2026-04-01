@@ -31,13 +31,13 @@
 
 完成形から巻き戻し、各ステップの初期状態を導出する。
 
-- [ ] 2-1. `network-step4.yaml`（Step 4 初期状態 = Step 3 完成形）
+- [x] 2-1. `network-step4.yaml`（Step 4 初期状態 = Step 3 完成形）
   - Step 3 まで完成済み、SG と Outputs がまだない状態
-- [ ] 2-2. `network-step3.yaml`（Step 3 初期状態 = Step 2 完成形）
+- [x] 2-2. `network-step3.yaml`（Step 3 初期状態 = Step 2 完成形）
   - VPC + サブネット完成済み、IGW・ルートテーブルがまだない状態
-- [ ] 2-3. `network-step2.yaml`（Step 2 初期状態 = Step 1 完成形）
+- [x] 2-3. `network-step2.yaml`（Step 2 初期状態 = Step 1 完成形）
   - VPC のみ完成済み、サブネットがまだない状態
-- [ ] 2-4. `network-step1.yaml`（Step 1 初期状態 = 空テンプレート）
+- [x] 2-4. `network-step1.yaml`（Step 1 初期状態 = 空テンプレート）
   - テンプレートの骨格のみ、リソースなし
 
 ---
