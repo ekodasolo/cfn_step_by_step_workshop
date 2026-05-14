@@ -17,11 +17,11 @@ Parameters:
 Mappings:
   RegionAMI:
     ap-northeast-1:
-      AMI: ami-0599b6e53ca798bb2
+      AMI: ami-054fc3f2e774c43b3
     ap-northeast-3:
-      AMI: ami-0a897c44e83f91dfc
+      AMI: ami-054fc3f2e774c43b3
     us-east-1:
-      AMI: ami-0953476d60561c955
+      AMI: ami-054fc3f2e774c43b3
 
 # ==================================================
 # リソース
